@@ -1,0 +1,184 @@
+import numpy 
+import numpy.random
+import pylab
+import dispims_color
+import logreg 
+import online_kmeans 
+
+numclasses = 10
+patchsize = 6
+numhid = 100
+# This determines how many cells we divide the image into for pooling.
+# We divide the image evenly into pooling^2 square cells.
+# Currently the only supported values are 1 and 2.
+pooling = 2
+# Default to 3 for RGB
+numchannels = 3
+# We assume a square input of inputdim x inputdim x numchannels
+inputdim = 32
+
+
+#FETCH DATA 
+print "loading data"
+trainims = numpy.loadtxt("cifar_mini_images_train.txt")
+testims = numpy.loadtxt("cifar_mini_images_test.txt")
+trainlabels = numpy.loadtxt("cifar_mini_labels_train.txt").astype("int")
+testlabels = numpy.loadtxt("cifar_mini_labels_test.txt").astype("int")
+allims = numpy.concatenate((trainims,testims), 0)
+
+numtrain = numpy.int(trainims.shape[0]*0.75)  #use 3/4 for training 
+numvali = numpy.int(trainims.shape[0]*0.25)   #use 1/4 for validation 
+
+
+
+def crop_patches_color(image, keypoints, patchsize):
+    patches = numpy.zeros((len(keypoints), numchannels*patchsize**2))
+    for i, k in enumerate(keypoints):
+        patches[i, :] = image[k[0]-patchsize/2:k[0]+patchsize/2, k[1]-patchsize/2:k[1]+patchsize/2,:].flatten()
+    return patches
+
+
+def pca(data, var_fraction):
+    """ principal components, retaining as many components as required to 
+        retain var_fraction of the variance 
+
+    Returns projected data, projection mapping, inverse mapping, mean"""
+    from numpy.linalg import eigh
+    u, v = eigh(numpy.cov(data, rowvar=1, bias=1))
+    usortind = numpy.argsort(u)[::-1]
+    v = v[:, usortind]
+    u = u[usortind]
+    u = u[u.cumsum()<u.sum()*var_fraction]
+    numprincomps = u.shape[0]
+    V = ((u**(-0.5))[:numprincomps][numpy.newaxis,:]*v[:,:numprincomps]).T
+    W = (u**0.5)[:numprincomps][numpy.newaxis,:]*v[:,:numprincomps]
+    return numpy.dot(V,data), V, W
+
+
+#SHOW SOME IMAGES (only works for RGB images with numchannels = 3)
+imstoshow = numpy.zeros((30, inputdim, inputdim, 3))
+for c in range(numclasses):
+    imstoshow[c*3:(c+1)*3] = trainims[trainlabels[:,c]==1][:3].reshape(3,3,inputdim,inputdim).transpose(0,2,3,1)
+
+dispims_color.dispims_color(imstoshow, 1)
+
+
+
+
+#WHITENING
+rand1 = numpy.random.randint(patchsize/2, inputdim-patchsize/2, 20)
+rand2 = numpy.random.randint(patchsize/2, inputdim-patchsize/2, 20)
+to_concatenate = [crop_patches_color(
+                        im.reshape(numchannels, inputdim, inputdim).transpose(1,2,0),
+                        numpy.array([rand1, rand2]).T,
+                        patchsize)
+                 for im in trainims]
+patches = numpy.concatenate(to_concatenate).astype("float32")
+R = numpy.random.permutation(patches.shape[0])
+patches = patches[R, :]
+meanstd = patches.std()
+patches -= patches.mean(1)[:,None]
+patches /= patches.std(1)[:,None] + 0.1 * meanstd
+#patches -= patches.mean(0)[None,:]
+#patches /= patches.std(0)[None,:] 
+print "pshape", patches.shape
+pcadata, pca_backward, pca_forward = pca(patches.T, .9)
+featurelearndata = pcadata.T.astype("float32")
+del pcadata
+numpatches = featurelearndata.shape[0]
+print "shape", featurelearndata.shape
+print "numpatches: ", numpatches
+print "done"
+
+
+
+
+
+#LEARN FILTERS
+print "instantiating and training model"
+Rinit = numpy.random.permutation(numhid)
+W = featurelearndata[Rinit]
+for epoch in range(10):
+    W = online_kmeans.kmeans(featurelearndata, numhid, Winit=W, numepochs=10, learningrate=0.1*0.8**epoch)
+    W_ = numpy.dot(pca_forward,W.T).T.reshape(numhid, patchsize, patchsize, numchannels)
+    dispims_color.dispims_color(W_)
+    pylab.ion()
+    pylab.draw()
+    pylab.show()
+
+pylab.ioff()
+print "done"
+
+
+
+
+
+
+#EXTRACT FEATURES WITH POOLING
+allfeatures = []
+print "xxxxx", 
+for i, image in enumerate(allims):
+    print "\b\b\b\b\b\b{0:5d}".format(i), 
+    image = image.reshape(numchannels, inputdim, inputdim).transpose(1,2,0)
+    prange = numpy.arange(patchsize/2, inputdim-patchsize/2)
+    meshg = numpy.meshgrid(prange, prange)    
+    keypoints = numpy.array([c.flatten() for c in meshg]).T
+    patches = crop_patches_color(image, keypoints, patchsize)
+    patches -= patches.mean(1)[:,None] 
+    patches /= patches.std(1)[:,None] + 0.1 * meanstd
+    patches = numpy.dot(patches, pca_backward.T).astype("float32")
+    if pooling==1:
+        allfeatures.append(online_kmeans.assign_triangle(patches, W).mean(0).astype("float32"))
+    elif pooling==2:
+        quadrants = numpy.array([int(str(int(a[0]>=inputdim/2))+str(int(a[1]>=inputdim/2)), 2) for a in keypoints])
+        features = online_kmeans.assign_triangle(patches, W).astype("float32")
+        allfeatures.append(numpy.array([(features * (quadrants==i)[:,None]).mean(0) for i in range(4)]).reshape(4*numhid))
+    elif pooling==4:
+        # cells =
+        break
+
+print 
+
+alltrainfeatures = numpy.vstack(allfeatures[:numtrain+numvali])
+testfeatures = numpy.vstack(allfeatures[numtrain+numvali:])
+
+trainfeatures = alltrainfeatures[:numtrain]
+valifeatures = alltrainfeatures[numtrain:]
+alltrainlabels = trainlabels
+valilabels = trainlabels[numtrain:]
+trainlabels = trainlabels[:numtrain]
+
+
+
+#CLASSIFICATION 
+#weightcosts = [0.1, 0.01, 0.001, 0.0001, 0.00001, 0.0]
+weightcosts = [0.1, 0.01, 0.001]
+valicosts = []
+lr = logreg.Logreg(numclasses, trainfeatures.shape[1])
+lr.train(trainfeatures.T, trainlabels.T, numsteps=100, verbose=False, weightcost=weightcosts[0])
+lr.train_cg(trainfeatures.T, trainlabels.T, weightcost=weightcosts[0], maxnumlinesearch=100)
+valicosts.append(lr.zeroone(valifeatures.T, valilabels.T))
+for wcost in weightcosts[1:]:
+    lr.train(trainfeatures.T, trainlabels.T, numsteps=100,verbose=False,weightcost=wcost)
+    lr.train_cg(trainfeatures.T, trainlabels.T, weightcost=wcost, maxnumlinesearch=100)
+    valicosts.append(lr.zeroone(valifeatures.T, valilabels.T))
+
+winningwcost = weightcosts[numpy.argmin(valicosts)]
+
+lr.train(alltrainfeatures.T, alltrainlabels.T, numsteps=100, verbose=False, weightcost=winningwcost)
+lr.train_cg(alltrainfeatures.T, alltrainlabels.T, weightcost=winningwcost, maxnumlinesearch=100) 
+
+performance = 1.0 - lr.zeroone(testfeatures.T, testlabels.T)
+print "logreg test performance: ", performance
+print "winning weightcost: ", winningwcost
+
+
+#PLOT SOME STUFF: 
+#plot(trainfeatures.mean(0))
+a = 0.25*(trainfeatures[:,:100].mean(0)+trainfeatures[:,100:200].mean(0)+trainfeatures[:,200:300].mean(0)+trainfeatures[:,300:400].mean(0))
+s = numpy.argsort(a)
+#s = argsort((lr.weights**2).sum(0).reshape(4, 100).sum(0)
+#dispims_color.dispims_color(W_[s], 1)
+
+
+
