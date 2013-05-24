@@ -102,6 +102,7 @@ Rinit = numpy.random.permutation(numhid)
 W = whitenedpatches[Rinit]
 for epoch in range(10):
 
+    # should I be using .yaml stuff and whatnot... prolly...
     nvis = whitenedpatches.shape[1]
     nhid = numhid
     act_enc = 'sigmoid'

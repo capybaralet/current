@@ -3,7 +3,10 @@ import numpy.random
 import pylab
 import dispims_color
 import logreg 
-import online_kmeans 
+import online_kmeans
+import theano 
+import pylearn2
+import pylearn2.pylearn2.models.autoencoder as autoencoder
 
 numclasses = 10
 patchsize = 6
@@ -83,9 +86,9 @@ patches /= patches.std(1)[:,None] + 0.1 * meanstd
 #patches /= patches.std(0)[None,:] 
 print "pshape", patches.shape
 pcadata, pca_backward, pca_forward = pca(patches.T, .9)
-featurelearndata = pcadata.T.astype("float32")
+whitenedpatches = pcadata.T.astype("float32")
 del pcadata
-numpatches = featurelearndata.shape[0] 
+numpatches = whitenedpatches.shape[0] 
 print "numpatches: ", numpatches
 print "done"
 
@@ -96,16 +99,21 @@ print "done"
 #LEARN FILTERS
 print "instantiating and training model"
 Rinit = numpy.random.permutation(numhid)
-W = featurelearndata[Rinit]
+W = whitenedpatches[Rinit]
 for epoch in range(10):
-    W = online_kmeans.kmeans(featurelearndata, numhid, Winit=W, numepochs=10, learningrate=0.1*0.8**epoch)
+
+    nvis = whitenedpatches.shape[1]
+    nhid = numhid
+    act_enc = 'sigmoid'
+    act_dec = 'sigmoid'
+    ae = autoencoder.Autoencoder(nvis, nhid, act_enc, act_dec)
+    
+    whitenedpatches, numhid, Winit=W, numepochs=10, learningrate=0.1*0.8**epoch)
     W_ = numpy.dot(pca_forward,W.T).T.reshape(numhid, patchsize, patchsize, numchannels)
     dispims_color.dispims_color(W_)
-    pylab.ion()
     pylab.draw()
     pylab.show()
 
-pylab.ioff()
 print "done"
 
 
