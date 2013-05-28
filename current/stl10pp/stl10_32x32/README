@@ -1,0 +1,11 @@
+
+The .pkl files in this directory may be opened in python using
+cPickle, pickle, or pylearn2.serial.load. They contain pylearn2
+Dataset objects defining the STL-10 dataset, but downsampled to
+size 32x32 and translated to lie in [-127.5, 127.5 ].
+
+They were created with the pylearn2 script make_downsampled_stl10.py
+
+All other files in this directory, including this README, were
+created by the same script and are necessary for the other files
+to function correctly.
