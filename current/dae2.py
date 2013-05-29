@@ -37,6 +37,10 @@ learningrate = .1
 
 
 
+# In this YAML setup, I use 32*32*3 (inputdim x inputdim x numchannels) visible units, 
+# for CIFAR10 data.  I don't know if this is ideal, maybe there is a better way to deal with 
+# RGB data.
+
 dataset = """!obj:pylearn2.datasets.cifar10.CIFAR10 {
         which_set: 'train',
         one_hot: 1,
@@ -49,7 +53,7 @@ model = """!obj:pylearn2.models.autoencoder.DenoisingAutoencoder {
     irange: 0.1,
     act_enc: 'sigmoid',
     act_dec: 'sigmoid',
-    nvis: 1024,
+    nvis: 3072,
     corruptor: !obj:pylearn2.corruption.GaussianCorruptor {
             stdev: 0.3,
         },
@@ -74,11 +78,11 @@ algorithm = """!obj:pylearn2.training_algorithms.bgd.BGD {
                               which_set: 'test',
                               one_hot: 1,
                               start: 0,
-                              stop: 200
+                              stop: 10000
                           }
             },      
         termination_criterion : !obj:pylearn2.training_algorithms.sgd.EpochCounter {
-        "max_epochs": 70,
+        "max_epochs": 4,
         }
     }"""
     
@@ -99,6 +103,7 @@ train = """!obj:pylearn2.train.Train {
 
 
 train = yaml_parse.load(train)
+print "Beginning training..."
 train.main_loop()
 
 
@@ -122,12 +127,34 @@ b2 = b2.get_value()
 # Plotting this many example input/output pairs
 num2plot = 8
 
-inputs = dataset.get_batch_topo(num2plot).reshape(num2plot, inputdim, inputdim)
-flat_inputs = inputs.reshape(num2plot, inputdim**2)
+inputs = dataset.get_batch_topo(num2plot).reshape(num2plot, inputdim, inputdim, numchannels)
+flat_inputs = inputs.reshape(num2plot, inputdim**2*numchannels)
 h = s(np.dot(flat_inputs,w1)+b1)
 flat_outputs = s(np.dot(h,w2)+b2)
-outputs = flat_outputs.reshape(num2plot, inputdim, inputdim)
+outputs = flat_outputs.reshape(num2plot, inputdim, inputdim, numchannels)
 
+
+
+def rgb2gray(image):
+    return numpy.sum(image*numpy.array([0.3,0.59,0.11])[None,None,:],2)
+
+
+inputs2 = numpy.zeros((num2plot, inputdim, inputdim))
+outputs2 = numpy.zeros((num2plot, inputdim, inputdim))
+  
+for i in range(inputs.shape[0]):
+    inputs2[i] = rgb2gray(inputs[i])
+    outputs2[i] = rgb2gray(outputs[i])
+
+# Plot Grayscale
+for i in range(num2plot):
+    plt.subplot(num2plot,2,2*i+1)
+    plt.imshow(inputs2[i], cmap = cm.Greys_r)
+    plt.subplot(num2plot,2,2*i+2)
+    plt.imshow(outputs2[i], cmap = cm.Greys_r)
+
+
+# Plot RGB (not sure what this does, actually, maybe just getting the first channel)
 for i in range(num2plot):
     plt.subplot(num2plot,2,2*i+1)
     plt.imshow(inputs[i], cmap = cm.Greys_r)

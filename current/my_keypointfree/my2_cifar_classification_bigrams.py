@@ -92,7 +92,11 @@ for c in range(numclasses):
 patches = numpy.concatenate([crop_patches_color(im.reshape(3, 32, 32).transpose(1,2,0), numpy.array([rng.randint(patchsize/2, 32-patchsize/2, 20), rng.randint(patchsize/2, 32-patchsize/2, 20)]).T, patchsize) for im in trainims]).astype("float32")
 R = rng.permutation(patches.shape[0])
 patches = patches[R, :]
+print patches.shape
 meanstd = patches.std()
+print meanstd.shape
+print patches.std(1).shape
+print patches.std(1)[:,None].shape
 patches -= patches.mean(1)[:,None]
 patches /= patches.std(1)[:,None] + 0.1 * meanstd
 #patches -= patches.mean(0)[None,:]

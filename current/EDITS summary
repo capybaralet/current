@@ -1,0 +1,6 @@
+done: 
+remove duplicate CentralWindow class
+add keep_var_fraction option for PCA
+
+TODO:
+add ExtractGridPatchPairs class
