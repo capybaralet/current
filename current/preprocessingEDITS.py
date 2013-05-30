@@ -639,10 +639,11 @@ class PCA_ViewConverter(object):
 
 
 class PCA(object):
-    def __init__(self, num_components, keep_var_fraction = 1.0):
+    def __init__(self, num_components, keep_var_fraction = 1.0e30):
         # Keeps the largest num_components eigenvalues, or as many as  
         # necessary to capture keep_var_fraction of the original variance,
-        # whichever is less.
+        # whichever is less.  The default value of keep_var_fraction is designed
+        # to never cut off any components, so it should maybe be infinity.
         self._num_components = num_components
         self._keep_var_fraction = keep_var_fraction
         self._pca = None

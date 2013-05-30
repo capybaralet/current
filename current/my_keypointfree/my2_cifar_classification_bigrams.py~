@@ -12,13 +12,13 @@ import train
 import online_kmeans 
 
 
-featurelearn = "k"
+featurelearn = "autoencoder"
 
 numclasses = 10 
 patchsize = 6
 border = patchsize/2
 maxdelta = 5
-fixation_mask_size = 6
+fixation_mask_size = 4
 numhid = 100
 numpatches_per_image = 500
 
@@ -92,7 +92,11 @@ for c in range(numclasses):
 patches = numpy.concatenate([crop_patches_color(im.reshape(3, 32, 32).transpose(1,2,0), numpy.array([rng.randint(patchsize/2, 32-patchsize/2, 20), rng.randint(patchsize/2, 32-patchsize/2, 20)]).T, patchsize) for im in trainims]).astype("float32")
 R = rng.permutation(patches.shape[0])
 patches = patches[R, :]
+print patches.shape
 meanstd = patches.std()
+print meanstd.shape
+print patches.std(1).shape
+print patches.std(1)[:,None].shape
 patches -= patches.mean(1)[:,None]
 patches /= patches.std(1)[:,None] + 0.1 * meanstd
 #patches -= patches.mean(0)[None,:]
@@ -159,6 +163,9 @@ for i, image in enumerate(allims):
     patch_pairs = numpy.vstack(patch_pairs).astype("float32")
     keypoint_deltas = numpy.vstack(keypoint_deltas).astype("float32")
     alldata.append(numpy.hstack((keypoint_deltas, patch_pairs)))
+    print "patch_pairs.shape, keypoint_deltas.shape after stacking", patch_pairs.shape, keypoint_deltas.shape
+    if i > 0:
+        break
 print "done"
 print len(alldata)
 

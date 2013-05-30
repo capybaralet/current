@@ -1,6 +1,74 @@
+
+####################################################
+May 29
+###########
+
 done: 
 remove duplicate CentralWindow class
-add keep_var_fraction option for PCA
+add keep_var_fraction option for PCA (pcaEDITS.py, preprocessingEDITS.py)
 
 TODO:
 add ExtractGridPatchPairs class
+modify dense_design_matrix.py 
+	1.  examine topo_view_to_design_mat function (under DefaultViewConverter class)
+	2.  DefaultViewConverter class needs to be 'forked' NonDefault...
+	3.  DenseDesignMatrix class needs a more complicated set_topological_view like function.... 
+
+
+Ask About:
+removal of autoencoder from models (isn't that where it should go?)
+
+
+Notes:
+It appears that ExtractPatches (and related) attempt to support arbitrary input shape (i.e., not just 2D images),
+but set_topological_view only appears to support a 2D input shape.
+
+
+
+
+
+
+
+###############################################################################################
+NOTE - topo_view_to_design_mat/design_mat_to_topo_view is where the action happens for converting between dataset views
+#########################################
+
+####################################################
+May 30
+###########
+
+STEP 0:
+Figure out what topological view we want for patch-pairs.
+
+
+
+RE-EVAULATING STRATEGY:
+	1. get patches 
+	2. GCN, PCA whiten patches
+	3. get (whitened) patch pairs
+	4. Unsupervised learning
+	5. etc...
+^to implement this, I need to track the displacement data, without whitening it.... 
+	FIND OUT if this is possible with current dataset architecture...
+
+
+NEW TODO:
+	1. make an ExtractPatchesWithPosition class
+	2. make GCN, PCA whitening work on patches with position
+	3. make a MakePatchPairsWithDisplacement class
+	4. deal with dataset views.
+
+
+
+
+
+
+functionality OPTIONS:
+	1. - choose # of pairs
+	   - randomly generate pair by pair
+	2. - choose # of patches
+	   - generate patches 
+	   - use all resulting pairs
+	   - OPTIONAL: no overlap
+
+

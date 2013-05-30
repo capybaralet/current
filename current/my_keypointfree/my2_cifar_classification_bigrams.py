@@ -163,6 +163,8 @@ for i, image in enumerate(allims):
     patch_pairs = numpy.vstack(patch_pairs).astype("float32")
     keypoint_deltas = numpy.vstack(keypoint_deltas).astype("float32")
     alldata.append(numpy.hstack((keypoint_deltas, patch_pairs)))
+    if i == 2:
+        print "patch_pairs.shape, keypoint_deltas.shape after stacking", patch_pairs.shape, keypoint_deltas.shape
 print "done"
 print len(alldata)
 
