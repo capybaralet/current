@@ -1,0 +1,73 @@
+import numpy 
+import numpy.random
+import pylab
+import theano 
+import pylearn2
+import pylearn2.models.autoencoder as autoencoder
+
+from pylearn2.config import yaml_parse
+
+
+
+dataset = """!obj:pylearn2.datasets.mnist.MNIST {
+        which_set: 'train',
+        one_hot: 1,
+        start: 0,
+        stop: 500
+    }"""
+
+model = """!obj:pylearn2.models.autoencoder.Autoencoder {
+    nhid: 25,
+    irange: 0.1,
+    act_enc: 'sigmoid',
+    act_dec: 'sigmoid',
+    nvis: 784,
+}"""
+
+algorithm = """!obj:pylearn2.training_algorithms.bgd.BGD {
+        cost: !obj:pylearn2.costs.autoencoder.MeanSquaredReconstructionError {
+        },
+        batch_size: 100,
+        line_search_mode: 'exhaustive',
+        conjugate: 1,
+        monitoring_dataset:
+            {
+                'train' : *train,
+                'valid' : !obj:pylearn2.datasets.mnist.MNIST {
+                              which_set: 'train',
+                              one_hot: 1,
+                              start: 500,
+                              stop:  600
+                          },
+                'test'  : !obj:pylearn2.datasets.mnist.MNIST {
+                              which_set: 'test',
+                              one_hot: 1,
+                              start: 0,
+                              stop: 100
+                          }
+            },      
+        termination_criterion : !obj:pylearn2.training_algorithms.sgd.EpochCounter {
+        "max_epochs": 100,
+        }
+    }"""
+    
+    
+train = """!obj:pylearn2.train.Train {
+    dataset: &train %(dataset)s,
+    model: %(model)s,
+    algorithm: %(algorithm)s,
+    extensions: [
+        !obj:pylearn2.train_extensions.best_params.MonitorBasedSaveBest {
+             channel_name: 'valid_objective',
+             save_path: "ae_best.pkl"
+        },
+    ],
+    save_path: "ae.pkl",
+    save_freq: 1
+}""" % locals()
+
+
+train = yaml_parse.load(train)
+train.main_loop()
+
+

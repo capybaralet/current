@@ -1,3 +1,90 @@
+####################################################
+May 31
+###########
+
+TO REPLACE in pylearn2:
+pca.py
+preprocessing.py
+dense_design_matrix.py
+
+
+done: 
+remove duplicate CentralWindow class
+add keep_var_fraction option for PCA (pcaEDITS.py, preprocessingEDITS.py)
+ExtractPatchesWithPosition class, corresponding edits to dense_design_matrixEDITS
+
+Note: 
+I no longer need to change the topological view at all, I just add a new attribute to the dense_design_matrix 
+class instead.
+
+TODO: 
+1. check what I have so far: try it out!
+
+NO NEED, WHITENING SHOULD TAKE CARE OF IT!	2. figure out how to deal with colors/channel data 
+3. make patch-pairs
+4. think about using whitening results to trim patch collection based on "feature salience" (before converting to patch pairs)
+
+
+
+
+
+
+
+
+
+
+Still got these on the backburner: 
+
+Ask About:
+removal of autoencoder from models (isn't that where it should go?)
+
+Notes:
+It appears that ExtractPatches (and related) attempt to support arbitrary input shape (i.e., not just 2D images),
+but set_topological_view only appears to support a 2D input shape.
+
+
+
+
+###############################################################################################
+NOTE - topo_view_to_design_mat/design_mat_to_topo_view is where the action happens for converting between dataset views
+#########################################
+
+####################################################
+May 30
+###########
+
+STEP 0:
+Figure out what topological view we want for patch-pairs.
+
+
+RE-EVAULATING STRATEGY:
+	1. get patches 
+	2. GCN, PCA whiten patches
+	3. get (whitened) patch pairs
+	4. Unsupervised learning
+	5. etc...
+^to implement this, I need to track the displacement data, without whitening it.... 
+	FIND OUT if this is possible with current dataset architecture...
+
+
+NEW TODO:
+	1. make an ExtractPatchesWithPosition class
+	2. make GCN, PCA whitening work on patches with position
+	3. make a MakePatchPairsWithDisplacement class
+	4. deal with dataset views.
+
+
+
+
+
+functionality OPTIONS:
+	1. - choose # of pairs
+	   - randomly generate pair by pair
+	2. - choose # of patches
+	   - generate patches 
+	   - use all resulting pairs
+	   - OPTIONAL: no overlap
+
 
 ####################################################
 May 29
@@ -22,53 +109,4 @@ removal of autoencoder from models (isn't that where it should go?)
 Notes:
 It appears that ExtractPatches (and related) attempt to support arbitrary input shape (i.e., not just 2D images),
 but set_topological_view only appears to support a 2D input shape.
-
-
-
-
-
-
-
-###############################################################################################
-NOTE - topo_view_to_design_mat/design_mat_to_topo_view is where the action happens for converting between dataset views
-#########################################
-
-####################################################
-May 30
-###########
-
-STEP 0:
-Figure out what topological view we want for patch-pairs.
-
-
-
-RE-EVAULATING STRATEGY:
-	1. get patches 
-	2. GCN, PCA whiten patches
-	3. get (whitened) patch pairs
-	4. Unsupervised learning
-	5. etc...
-^to implement this, I need to track the displacement data, without whitening it.... 
-	FIND OUT if this is possible with current dataset architecture...
-
-
-NEW TODO:
-	1. make an ExtractPatchesWithPosition class
-	2. make GCN, PCA whitening work on patches with position
-	3. make a MakePatchPairsWithDisplacement class
-	4. deal with dataset views.
-
-
-
-
-
-
-functionality OPTIONS:
-	1. - choose # of pairs
-	   - randomly generate pair by pair
-	2. - choose # of patches
-	   - generate patches 
-	   - use all resulting pairs
-	   - OPTIONAL: no overlap
-
 

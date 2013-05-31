@@ -14,17 +14,13 @@ import matplotlib.cm as cm
 
 
 
-###
-# Note: Currently training is failing dramatically
-
-
 
 #Step 0: Set Parameters
 
 # Default to 3 for RGB
 numchannels = 3
 # We assume a square input of inputdim x inputdim x numchannels
-inputdim = 32
+inputdim = 28
 
 nclasses = 10
 irange = .5
@@ -41,11 +37,7 @@ learningrate = .1
 
 
 
-# In this YAML setup, I use 32*32*3 (inputdim x inputdim x numchannels) visible units, 
-# for CIFAR10 data.  I don't know if this is ideal, maybe there is a better way to deal with 
-# RGB data.
-
-dataset = """!obj:pylearn2.datasets.cifar10.CIFAR10 {
+dataset = """!obj:pylearn2.datasets.mnist.MNIST {
         which_set: 'train',
         one_hot: 1,
         start: 0,
@@ -53,40 +45,40 @@ dataset = """!obj:pylearn2.datasets.cifar10.CIFAR10 {
     }"""
 
 model = """!obj:pylearn2.models.autoencoder.DenoisingAutoencoder {
-    nhid: 100,
-    irange: 0.05,
+    nhid: 50,
+    irange: 0.1,
     act_enc: 'sigmoid',
     act_dec: 'sigmoid',
-    nvis: 3072,
+    nvis: 784,
     corruptor: !obj:pylearn2.corruption.GaussianCorruptor {
-            stdev: 0.1,
+            stdev: 0.3,
         },
 }"""
 
 algorithm = """!obj:pylearn2.training_algorithms.bgd.BGD {
         cost: !obj:pylearn2.costs.autoencoder.MeanSquaredReconstructionError {
         },
-        batch_size: 200,
+        batch_size: 100,
         line_search_mode: 'exhaustive',
         conjugate: 1,
         monitoring_dataset:
             {
                 'train' : *train,
-                'valid' : !obj:pylearn2.datasets.cifar10.CIFAR10 {
+                'valid' : !obj:pylearn2.datasets.mnist.MNIST {
                               which_set: 'train',
                               one_hot: 1,
                               start: 1000,
                               stop:  1200
                           },
-                'test'  : !obj:pylearn2.datasets.cifar10.CIFAR10 {
-                              which_set: 'train',
+                'test'  : !obj:pylearn2.datasets.mnist.MNIST {
+                              which_set: 'test',
                               one_hot: 1,
-                              start: 1200,
-                              stop: 1400
+                              start: 0,
+                              stop: 200
                           }
             },      
         termination_criterion : !obj:pylearn2.training_algorithms.sgd.EpochCounter {
-        "max_epochs": 50,
+        "max_epochs": 70,
         }
     }"""
     
@@ -98,16 +90,15 @@ train = """!obj:pylearn2.train.Train {
     extensions: [
         !obj:pylearn2.train_extensions.best_params.MonitorBasedSaveBest {
              channel_name: 'valid_objective',
-             save_path: "dae2_best.pkl"
+             save_path: "dae_best.pkl"
         },
     ],
-    save_path: "dae2.pkl",
+    save_path: "dae.pkl",
     save_freq: 1
 }""" % locals()
 
 
 train = yaml_parse.load(train)
-print "Beginning training..."
 train.main_loop()
 
 
@@ -115,7 +106,7 @@ def s(x):
     return 1. / (1. + np.exp(-x)) 
 
 
-model = serial.load('dae2.pkl')
+model = serial.load('dae.pkl')
 dataset_yaml_src = model.dataset_yaml_src
 dataset = yaml_parse.load(dataset_yaml_src)
 
@@ -131,39 +122,17 @@ b2 = b2.get_value()
 # Plotting this many example input/output pairs
 num2plot = 8
 
-inputs = dataset.get_batch_topo(num2plot).reshape(num2plot, inputdim, inputdim, numchannels)
-flat_inputs = inputs.reshape(num2plot, inputdim**2*numchannels)
+inputs = dataset.get_batch_topo(num2plot).reshape(num2plot, inputdim, inputdim)
+flat_inputs = inputs.reshape(num2plot, inputdim**2)
 h = s(np.dot(flat_inputs,w1)+b1)
 flat_outputs = s(np.dot(h,w2)+b2)
-outputs = flat_outputs.reshape(num2plot, inputdim, inputdim, numchannels)
+outputs = flat_outputs.reshape(num2plot, inputdim, inputdim)
 
-
-
-def rgb2gray(image):
-    return numpy.sum(image*numpy.array([0.3,0.59,0.11])[None,None,:],2)
-
-
-inputs2 = numpy.zeros((num2plot, inputdim, inputdim))
-outputs2 = numpy.zeros((num2plot, inputdim, inputdim))
-  
-for i in range(inputs.shape[0]):
-    inputs2[i] = rgb2gray(inputs[i])
-    outputs2[i] = rgb2gray(outputs[i])
-
-# Plot Grayscale
 for i in range(num2plot):
     plt.subplot(num2plot,2,2*i+1)
-    plt.imshow(inputs2[i], cmap = cm.Greys_r)
+    plt.imshow(inputs[i], cmap = cm.Greys_r)
     plt.subplot(num2plot,2,2*i+2)
-    plt.imshow(outputs2[i], cmap = cm.Greys_r)
+    plt.imshow(outputs[i], cmap = cm.Greys_r)
 
-
-# Plot RGB (not sure what this does, actually, maybe just getting the first channel)
-#for i in range(num2plot):
-#    plt.subplot(num2plot,2,2*i+1)
-#    plt.imshow(inputs[i], cmap = cm.Greys_r)
-#    plt.subplot(num2plot,2,2*i+2)
-#    plt.imshow(outputs[i], cmap = cm.Greys_r)
-
-savestr = 'cifar.png'
+savestr = 'mnist.png'
 plt.savefig(savestr)

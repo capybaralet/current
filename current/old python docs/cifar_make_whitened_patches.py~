@@ -1,0 +1,43 @@
+"""
+This script whitens CIFAR-10 images, and makes a dataset of (patch-pairs, displacement vectors) 
+from the results 
+
+"""
+
+from pylearn2.utils import serial
+from pylearn2.datasets import preprocessing
+from pylearn2.utils import string_utils
+import numpy as np
+from pylearn2.datasets.cifar10 import CIFAR10
+
+import my_pca as pca
+
+output_dir = string_utils.preprocess('/u/kruegers/repo/current/pylearn2/pylearn2/datasets/cifar10')
+
+print "Preparing output directory..."
+serial.mkdir( output_dir )
+
+
+print 'Loading CIFAR-10 train dataset...'
+trainset = CIFAR10(which_set = 'train')
+print "Loading the test data"
+testset = CIFAR10(which_set = 'test')
+
+print "Learning the preprocessor"
+preprocessor = pca.PCA()
+
+print "Preprocessing the unsupervised train data..."
+trainset.apply_preprocessor(preprocessor = preprocessor, can_fit = True)
+print 'Saving the unsupervised train data'
+trainset.use_design_loc(output_dir+'/train.npy')
+serial.save(output_dir + '/train.pkl', trainset)
+
+print "Preprocessing the test data..."
+testset.apply_preprocessor(preprocessor = preprocessor, can_fit = False)
+print "Saving the test data"
+testset.use_design_loc(output_dir+'/test.npy')
+serial.save(output_dir+'/test.pkl', testset)
+
+print "Saving the preprocessor"
+serial.save(output_dir + '/preprocessor.pkl',preprocessor)
+

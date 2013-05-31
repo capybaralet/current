@@ -14,6 +14,10 @@ import matplotlib.cm as cm
 
 
 
+###
+# Note: Currently training is failing dramatically
+
+
 
 #Step 0: Set Parameters
 
@@ -45,11 +49,11 @@ dataset = """!obj:pylearn2.datasets.cifar10.CIFAR10 {
         which_set: 'train',
         one_hot: 1,
         start: 0,
-        stop: 10000
+        stop: 1000
     }"""
 
 model = """!obj:pylearn2.models.autoencoder.DenoisingAutoencoder {
-    nhid: 500,
+    nhid: 100,
     irange: 0.05,
     act_enc: 'sigmoid',
     act_dec: 'sigmoid',
@@ -62,7 +66,7 @@ model = """!obj:pylearn2.models.autoencoder.DenoisingAutoencoder {
 algorithm = """!obj:pylearn2.training_algorithms.bgd.BGD {
         cost: !obj:pylearn2.costs.autoencoder.MeanSquaredReconstructionError {
         },
-        batch_size: 400,
+        batch_size: 200,
         line_search_mode: 'exhaustive',
         conjugate: 1,
         monitoring_dataset:
@@ -71,14 +75,14 @@ algorithm = """!obj:pylearn2.training_algorithms.bgd.BGD {
                 'valid' : !obj:pylearn2.datasets.cifar10.CIFAR10 {
                               which_set: 'train',
                               one_hot: 1,
-                              start: 10000,
-                              stop:  12000
+                              start: 1000,
+                              stop:  1200
                           },
                 'test'  : !obj:pylearn2.datasets.cifar10.CIFAR10 {
                               which_set: 'train',
                               one_hot: 1,
-                              start: 12000,
-                              stop: 14000
+                              start: 1200,
+                              stop: 1400
                           }
             },      
         termination_criterion : !obj:pylearn2.training_algorithms.sgd.EpochCounter {
