@@ -1,0 +1,283 @@
+####################################################
+June 4
+###########
+
+
+OK, just talked to Pascal.  He says the problem arises because we are modifying the datasets in place, and that until that is changed
+(at an undetermined time in the future) I should probably use my workarounds.  So, I will modify the existing classes, and add a variable 
+that records whether the topo and dmat views are in sync.  
+
+Also, the topo_view doesn't store any data, it just knows how to access data from the dmat view.  
+
+When I want/need it, I can save and load an older version of the dataset (as a dmat, obviously...) and then use that to, for instance, reconstruct 
+images.  
+
+So, specifically, in my case, I want to save the original input images and be able to translate well between my patches and the input images....
+This seems to be something we would want in general to have available to us: any preprocessor (including a pipeline) should know how to undo processing on 
+any given piece of processed data.  For instance, after my pipeline, my examples are 1d vectors of the form: (p1,p2,d).  While I don't want to be carrying 
+the original dmat with all the image data around while I'm training my Autoencoder (unless, maybe it is more efficient sometimes to carry the original and 
+make the preprocessing happen in topo_view so to speak (or with an iterator (or both)), (for instance if the original dmat is smaller than my preprocessed one))
+I'll need this kind of functionality in order to plot things.  I may try to do this with the view converter...
+
+
+PLAN:
+0. email David and Ian today/tonight
+1. use datasets dmat to store patch_pairs
+	- save off original dataset (and/or dataset pre-PatchPairs)
+	- during pre-processing, track changes to data to make them reversible with access to saved database
+	- for plotting we need to go back to saved datasets and use our tracked info to reconstruct...
+3. figure out plotting
+4. make EPP more efficient
+5. figure out noise
+
+LONGER TERM PLAN:
+1. Implement other encoding options for d
+        - onehot bins
+        - linear combination of bins
+        - real value encoding
+2. Figure out how to balance relative importance of p1,p2 vs. d 
+        - Should be set-able as a hyperparameter.
+3. Automize hyperparameter testing (random search)
+        - save results and some plots
+        - ideally: configure so that different hyperparameter sets have similar computational costs
+4. Use face data
+
+
+
+
+
+
+Inspired by PCA_view_converter....
+Wow, I just realized: I think PCA already destroys the correspondence between the topological view (which remains of the images) and the
+design matrix view, which is where the processed images are stored.  
+....but it's also somewhat broken from what I can tell, in that if you cut off some of the components, or if they become NaN or something
+it won't be able to reconstruct properly, and won't warn you.
+- Yes it DOES!  I tested it.  geez...
+- Another issue for PCA: the pre-processed variance isn't correct when using num_components cutoff
+
+
+so... another project is to make the viewing software work with the PCA preprocessing (even when cutting out components)
+
+
+testing out ExtractPatchPairs
+
+I've edited:
+1. tutorials/make_dataset.py 
+	- throw-away edits (testing)
+2. preprocessing.py
+	- implemented keep_var_fraction option in PCA class
+	- added ExtractPatchesWithPosition and ExtractPatchPairs classes
+	- removed duplicate CentralWindow class
+3. pca.py
+	- removed extraneous calls to _update_cutoff (now only called by _PCABase.train)
+	- added keep_var_fraction parameter and functionality
+	- TODO make compatible with in_sync (or whatever we chose to implement instead)
+4. dense_design_matrix.py
+	- added stamps parameter to DenseDesignMatrix
+	- TODO make compatible with in_sync (or whatever we chose to implement instead)
+5. REMOVE SELF-COMMENTS, MAKE REAL COMMENTS!
+
+
+####################################################
+June 3
+###########
+
+ASK SOMEONE ABOUT WHICH OPTION TO PURSUE...
+
+NOTE: subclassing would require that CIFAR inherit from DenseDesignMatrixAugmented INSTEAD of DenseDesignMatrix.
+	MAYBE we skip the subclassing and just add new parameters: in_sync, stamps, X_old/X_sync, more?
+	and then also DefaultViewConverter can be edited rather than subclassed (add optional in_sync parameter, default True, change behavior on False)
+	and what else?  just need to (make and) add ExtractPatchPairs method to preprocessing.py
+
+
+
+TO DO: 
+ - subclasses
+	- figure out how to use warnings, use them for functions that may produce unexpected behavior....
+	- think about "unconverting" for plotting (and in general)... 
+		- use position stamps and topo_view to start with an input and find the corresponding output, X[i].
+		- reconvert found output by slicing the representations of p1,p2,d apart in X[i], and using PCA and distance encoding info.
+ - work out plotting 
+	- (select input set to plot for all hyperparams)
+	- write script to convert a given input (example/image) to its output(s)
+ - noise
+ - port patch-pair code into preprocessing.py and/or dense_design_matrix.py
+	- add ExtractPatchPairs method to preprocessing.py to create augmented representation of dataset 
+		(maybe calls ExtractPatchesWithPosition, to avoid assuming it was done beforehand)
+	- check other preprocessing methods for compatibility (is this necessary if I do the subclassing properly?)
+	- subclasses
+ - PCA bug
+ - add in_sync boolean parameter to DenseDesignMatrixAugmented (replace is_augmented?) to keep track of whether topo_view and X are in sync.
+
+
+
+
+
+
+
+BASIC PLAN WAS:
+ - subclass DenseDesignMatrix with DenseDesignMatrixAugmented and 
+	DefaultViewConverter with MyViewConverter
+ - The subclass semantics are to use self.X to hold (p1,p2,d) data 
+	as a design matrix, while keeping the old topo_view, and 
+        storing the old design matrix view as X_old.
+ - To implement, we need to override both classes methods, so that we 
+	use X_old in all the appropriate places.
+--------IS THAT ALL? should be.... think about this.
+	
+
+
+
+- renamed tags to stamps (check to be sure)
+
+- examined training (force non-topo view for our algorithm... this should allow us to use pylearn2 for training)
+
+- it appears that SGD as we use it doesn't use the topo view at all, so we should be OK for now just
+  setting the design_matrix of our dataset to be (p1,p2,d), while the topo view is still individual patches
+
+- if I DO end up subclassing DenseDesignMatrix and DefaultViewConverter, I can remove stamps attribute from 
+  the superclass DenseDesignMatrix.  Also, I need to check a lot of stuff (such as whether I should subclass other things, too)
+
+- continue porting???
+- how to do Autoencoder noise...
+
+
+
+
+
+
+####################################################
+May 31
+###########
+
+
+TO REPLACE in pylearn2:
+	pca.py
+	preprocessing.py
+	dense_design_matrix.py
+I've also editted (for test purposes):
+	tutorials/grbm_smd/make_dataset.py
+
+REMEMBER TO UPDATE MY current COPY OF pylearn2!
+
+
+
+
+
+
+TODO: 
+1. make patch-pairs encoder for pipeline (or as part of experiment script)
+2. make an experiment script to run the pretraining on the (patch-pair, d) data
+	- chose encoding for d...
+3. make a script to test parameter values, save results and plots of results.
+4. think about overlap
+5. think about using whitening results to trim patch collection based on "feature salience" (before converting to patch pairs)
+
+
+PLAN:
+- Start from here to make a yaml-free script for the complete process: 
+	https://github.com/lisa-lab/pylearn2/blob/master/pylearn2/scripts/tutorials/deep_trainer/run_deep_trainer.py
+- Construct (patch-pair,d) trainset within script, NOT within pipeline.
+
+
+
+
+DONE: 
+0. remove duplicate CentralWindow class
+1. add keep_var_fraction option for PCA (pcaEDITS.py, preprocessingEDITS.py)
+2. add ExtractPatchesWithPosition class, corresponding edits to dense_design_matrixEDITS
+3. check what I have so far: try it out!
+	- tested with keep_var_fraction = .99, 
+		- has a bug! (pca line 219) 
+		- remove print statements after debugging!
+		- can be patched pretty easily, but the bug looks to be from _PCABase.__call__ which has issues anyways.
+	- need to edit yaml file if we want to include keep_var_fraction, right now it expects we keep all the components (as in the default ZCA setup).
+
+4. figure out how to deal with colors/channel data  
+	- NO NEED, WHITENING SHOULD TAKE CARE OF IT!
+
+Note: 
+I no longer need to change the topological view at all, I added a new attribute to the dense_design_matrix 
+class instead.
+
+
+
+
+
+Still got these on the backburner: 
+
+Ask About:
+removal of autoencoder from models (isn't that where it should go?)
+how to deal with colors/channel data  
+_PCABase.__call__ issues
+
+Notes:
+It appears that ExtractPatches (and related) attempt to support arbitrary input shape (i.e., not just 2D images),
+but set_topological_view only appears to support a 2D input shape.
+
+
+
+
+###############################################################################################
+NOTE - topo_view_to_design_mat/design_mat_to_topo_view is where the action happens for converting between dataset views
+#########################################
+
+####################################################
+May 30
+###########
+
+STEP 0:
+Figure out what topological view we want for patch-pairs.
+
+
+RE-EVAULATING STRATEGY:
+	1. get patches 
+	2. GCN, PCA whiten patches
+	3. get (whitened) patch pairs
+	4. Unsupervised learning
+	5. etc...
+^to implement this, I need to track the displacement data, without whitening it.... 
+	FIND OUT if this is possible with current dataset architecture...
+
+
+NEW TODO:
+	1. make an ExtractPatchesWithPosition class
+	2. make GCN, PCA whitening work on patches with position
+	3. make a MakePatchPairsWithDisplacement class
+	4. deal with dataset views.
+
+
+
+functionality OPTIONS:
+	1. - choose # of pairs
+	   - randomly generate pair by pair
+	2. - choose # of patches
+	   - generate patches 
+	   - use all resulting pairs
+	   - OPTIONAL: no overlap
+
+
+####################################################
+May 29
+###########
+
+done: 
+remove duplicate CentralWindow class
+add keep_var_fraction option for PCA (pcaEDITS.py, preprocessingEDITS.py)
+
+TODO:
+add ExtractGridPatchPairs class
+modify dense_design_matrix.py 
+	1.  examine topo_view_to_design_mat function (under DefaultViewConverter class)
+	2.  DefaultViewConverter class needs to be 'forked' NonDefault...
+	3.  DenseDesignMatrix class needs a more complicated set_topological_view like function.... 
+
+
+Ask About:
+removal of autoencoder from models (isn't that where it should go?)
+
+
+Notes:
+It appears that ExtractPatches (and related) attempt to support arbitrary input shape (i.e., not just 2D images),
+but set_topological_view only appears to support a 2D input shape.
+
