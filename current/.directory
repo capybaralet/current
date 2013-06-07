@@ -1,7 +1,5 @@
 [Dolphin]
-Timestamp=2013,5,31,13,30,40
+SortOrder=1
+Timestamp=2013,6,4,17,15,26
 Version=2
 ViewMode=1
-
-[Settings]
-ShowDotFiles=true

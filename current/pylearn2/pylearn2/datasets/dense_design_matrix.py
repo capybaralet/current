@@ -41,7 +41,7 @@ class DenseDesignMatrix(Dataset):
     """
     _default_seed = (17, 2, 946)
 
-    def __init__(self, X=None, topo_view=None, y=None,
+    def __init__(self, X=None, topo_view=None, y=None, tags=None,
                  view_converter=None, axes = ('b', 0, 1, 'c'),
                  rng=_default_seed, preprocessor = None, fit_preprocessor=False):
         """
@@ -55,12 +55,16 @@ class DenseDesignMatrix(Dataset):
         topo_view : ndarray, optional
             Should be supplied if X is not.  An array whose first
             dimension is of length number examples. The remaining
-            dimensions are xamples with topological significance,
+            dimensions are examples with topological significance,
             e.g. for images the remaining axes are rows, columns,
             and channels.
         y : ndarray, 1-dimensional(?), optional
             Labels or targets for each example. The semantics here
             are not quite nailed down for this yet.
+        tags: ndarray, optional
+            First dimension is the number of examples, other dimensions 
+            contain extra information about the examples.  Used to keep 
+            track of position information for randomly cropped patches.
         view_converter : object, optional
             An object for converting between design matrices and
             topological views. Currently DefaultViewConverter is
@@ -79,6 +83,7 @@ class DenseDesignMatrix(Dataset):
             if topo_view is not None:
                 self.set_topological_view(topo_view, axes)
         self.y = y
+        self.tags = tags
         self.compress = False
         self.design_loc = None
         if hasattr(rng, 'random_integers'):
@@ -356,6 +361,12 @@ class DenseDesignMatrix(Dataset):
 
         return self.view_converter.design_mat_to_weights_view(mat)
 
+
+
+
+
+
+
     def set_topological_view(self, V, axes = ('b', 0, 1, 'c')):
         """
         Sets the dataset to represent V, where V is a batch
@@ -376,6 +387,33 @@ class DenseDesignMatrix(Dataset):
         self.view_converter = DefaultViewConverter([rows, cols, channels], axes=axes)
         self.X = self.view_converter.topo_view_to_design_mat(V)
         assert not N.any(N.isnan(self.X))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     def get_design_matrix(self, topo=None):
         """
@@ -465,6 +503,9 @@ class DenseDesignMatrix(Dataset):
         self.X = self.X[start:stop, :]
         if self.y is not None:
             self.y = self.y[start:stop, :]
+        if self.tags is not None:
+            self.tags = self.tags[start:stop, :]
+        assert self.X.shape[0] == self.tags.shape[0]        
         assert self.X.shape[0] == self.y.shape[0]
         assert self.X.shape[0] == stop - start
 
@@ -514,7 +555,7 @@ class DenseDesignMatrixPyTables(DenseDesignMatrix):
 
     _default_seed = (17, 2, 946)
 
-    def __init__(self, X=None, topo_view=None, y=None,
+    def __init__(self, X=None, topo_view=None, y=None, tags=None,
                  view_converter=None, axes = ('b', 0, 1, 'c'),
                  rng=_default_seed):
         """
@@ -534,6 +575,12 @@ class DenseDesignMatrixPyTables(DenseDesignMatrix):
         y : ndarray, 1-dimensional(?), optional
             Labels or targets for each example. The semantics here
             are not quite nailed down for this yet.
+        tags: ndarray, optional
+            First dimension is the number of examples, other dimensions 
+            contain extra information about the examples.  Used to keep 
+            track of position information for randomly cropped patches.
+            Currently, DenseDesignMatrixPyTables class has no support for 
+            this parameter.
         view_converter : object, optional
             An object for converting between design matrices and
             topological views. Currently DefaultViewConverter is
@@ -548,6 +595,7 @@ class DenseDesignMatrixPyTables(DenseDesignMatrix):
         super(DenseDesignMatrixPyTables, self).__init__(X = X,
                                             topo_view = topo_view,
                                             y = y,
+                                            tags = tags
                                             view_converter = view_converter,
                                             axes = axes,
                                             rng = rng)
@@ -572,7 +620,8 @@ class DenseDesignMatrixPyTables(DenseDesignMatrix):
             An array containing a design matrix representation of training
             examples. If unspecified, the entire dataset (`self.X`) is used
             instead.
-        TODO: why is this parameter named 'V'?
+        TODO: why is this parameter named 'V'? 
+	V stands for "View", I think. - David Krueger
         """
         assert not N.any(N.isnan(V))
         rows = V.shape[axes.index(0)]
@@ -731,16 +780,19 @@ class DefaultViewConverter(object):
 
     def topo_view_to_design_mat(self, V):
 
+        # Does this line actually do anything?  
         V = V.transpose(self.axes.index('b'), self.axes.index(0),
                 self.axes.index(1), self.axes.index('c'))
 
         num_channels = self.shape[-1]
+        # Examine HERE
         if N.any(N.asarray(self.shape) != N.asarray(V.shape[1:])):
             raise ValueError('View converter for views of shape batch size '
                              'followed by ' + str(self.shape) +
                              ' given tensor of shape ' + str(V.shape))
         batch_size = V.shape[0]
 
+        #
         rval = N.zeros((batch_size, self.pixels_per_channel * num_channels),
                        dtype=V.dtype)
 
@@ -758,6 +810,7 @@ class DefaultViewConverter(object):
         self.__dict__.update(d)
 
 def from_dataset(dataset, num_examples):
+# This function does not support tags attribute
     try:
 
         V, y = dataset.get_batch_topo(num_examples, True)
@@ -777,7 +830,7 @@ def from_dataset(dataset, num_examples):
     return rval
 
 def dataset_range(dataset, start, stop):
-
+# This function does not support tags attribute
     if dataset.X is None:
         return DenseDesignMatrix(X = None, y = None, view_converter = dataset.view_converter)
     X = dataset.X[start:stop, :].copy()

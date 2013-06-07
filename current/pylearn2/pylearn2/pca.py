@@ -74,6 +74,7 @@ class _PCABase(Block):
         super(_PCABase, self).__init__()
 
         self.num_components = num_components
+        self.keep_var_fraction = keep_var_fraction
         self.min_variance = min_variance
         self.whiten = whiten
 
@@ -207,7 +208,11 @@ class _PCABase(Block):
             'No components exceed the given min. variance'
         var_cutoff = 1 + numpy.where(var_mask)[0].max()
 
-        self.component_cutoff.set_value(min(var_cutoff, self.num_components))
+        keep_var_fraction = self.keep_var_fraction
+        v = v[v.cumsum()<v.sum()*keep_var_fraction]
+        var_fraction_cutoff = v.shape[0]
+
+        self.component_cutoff.set_value(min(var_cutoff, self.num_components, var_fraction_cutoff))
 
     def _cov_eigen(self, X):
         """

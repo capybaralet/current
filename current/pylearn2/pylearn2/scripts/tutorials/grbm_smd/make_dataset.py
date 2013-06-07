@@ -30,7 +30,7 @@ if __name__ == "__main__":
     # First we want to pull out small patches of the images, since it's easier
     # to train an RBM on these
     pipeline.items.append(
-        preprocessing.ExtractPatches(patch_shape=(8, 8), num_patches=150000)
+        preprocessing.ExtractPatchesWithPosition(patch_shape=(8, 8), patches_per_image=3)
     )
 
     # Next we contrast normalize the patches. The default arguments use the
@@ -42,7 +42,7 @@ if __name__ == "__main__":
     # Finally we whiten the data using ZCA. Again, the default parameters to
     # ZCA are set to the same values as those used in the previously mentioned
     # paper.
-    pipeline.items.append(preprocessing.ZCA())
+    pipeline.items.append(preprocessing.PCA(keep_var_fraction = .99))
 
     # Here we apply the preprocessing pipeline to the dataset. The can_fit
     # argument indicates that data-driven preprocessing steps (such as the ZCA
